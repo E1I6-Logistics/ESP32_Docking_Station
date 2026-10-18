@@ -2,16 +2,10 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 #include "dock_config.h"
 
 static const char *TAG = "WIFI_APP";
 
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
-
-static EventGroupHandle_t s_wifi_event_group;
 static int s_retry_num = 0;
 static bool s_is_connected = false;
 
@@ -25,7 +19,6 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             s_retry_num++;
             ESP_LOGW(TAG, "Retry connecting to AP (%d/%d)...", s_retry_num, DOCK_WIFI_MAXIMUM_RETRY);
         } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
             ESP_LOGE(TAG, "Failed to connect to AP after maximum retries.");
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -33,13 +26,10 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         ESP_LOGI(TAG, "Got IP Address: " IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         s_is_connected = true;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
 esp_err_t wifi_app_init(void) {
-    s_wifi_event_group = xEventGroupCreate();
-
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();

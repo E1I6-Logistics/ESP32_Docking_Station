@@ -17,51 +17,62 @@ typedef struct {
 } station_slot_t;
 
 static station_slot_t s_stations[DOCK_NUM_STATIONS] = {
-    { .id = 1, .sw_pin = STATION_1_LIMIT_SW_PIN, .led_pin = STATION_1_LED_PIN, .is_charging = false, .stable_count = 0, .last_raw_level = 1 },
-    { .id = 2, .sw_pin = STATION_2_LIMIT_SW_PIN, .led_pin = STATION_2_LED_PIN, .is_charging = false, .stable_count = 0, .last_raw_level = 1 },
-    { .id = 3, .sw_pin = STATION_3_LIMIT_SW_PIN, .led_pin = STATION_3_LED_PIN, .is_charging = false, .stable_count = 0, .last_raw_level = 1 }
+    {.id = 1, .sw_pin = STATION_1_LIMIT_SW_PIN, .led_pin = STATION_1_LED_PIN, .last_raw_level = 1},
+    {.id = 2, .sw_pin = STATION_2_LIMIT_SW_PIN, .led_pin = STATION_2_LED_PIN, .last_raw_level = 1},
+    {.id = 3, .sw_pin = STATION_3_LIMIT_SW_PIN, .led_pin = STATION_3_LED_PIN, .last_raw_level = 1},
 };
 
 static void dock_monitor_task(void *pvParameters) {
-    ESP_LOGI(TAG, "Dock Monitor Task started. Monitoring 3 stations (10ms scan)...");
+    ESP_LOGI(TAG, "Dock Monitor Task started. Monitoring %d stations (10ms scan)...", DOCK_NUM_STATIONS);
 
     // 10ms 샘플링, 5회 연속 일치 시 50ms 디바운싱 완료
     const int debounce_threshold = DOCK_DEBOUNCE_DELAY_MS / 10;
+    bool was_mqtt_connected = false;
 
     while (1) {
+        // 브로커 (재)연결 시 전체 상태 재발행: 부팅 직후/연결 끊김 중의 상태 변화가 유실되지 않도록
+        bool mqtt_connected = mqtt_app_is_connected();
+        if (mqtt_connected && !was_mqtt_connected) {
+            for (int i = 0; i < DOCK_NUM_STATIONS; i++) {
+                mqtt_app_publish_station_status(s_stations[i].id, s_stations[i].is_charging);
+            }
+        }
+        was_mqtt_connected = mqtt_connected;
+
         for (int i = 0; i < DOCK_NUM_STATIONS; i++) {
             station_slot_t *slot = &s_stations[i];
             int current_raw = gpio_get_level(slot->sw_pin);
 
-            // Pull-up: 스위치가 눌리면 0 (LOW), 열려있으면 1 (HIGH)
-            bool raw_charging = (current_raw == 0);
-
-            if (current_raw == slot->last_raw_level) {
-                if (slot->stable_count < debounce_threshold) {
-                    slot->stable_count++;
-                    if (slot->stable_count == debounce_threshold) {
-                        // 디바운싱 통과: 실제 상태 변화 발생 여부 확인
-                        if (slot->is_charging != raw_charging) {
-                            slot->is_charging = raw_charging;
-
-                            // 1. LED 하드웨어 제어 (충전 중이면 ON, 아니면 OFF)
-                            gpio_set_level(slot->led_pin, slot->is_charging ? 1 : 0);
-
-                            ESP_LOGI(TAG, "[STATION #%d] Status Changed -> %s (LED: %s)",
-                                     slot->id,
-                                     slot->is_charging ? "CHARGING (Docked)" : "IDLE (Undocked)",
-                                     slot->is_charging ? "ON" : "OFF");
-
-                            // 2. MQTT 메시지 전송
-                            mqtt_app_publish_station_status(slot->id, slot->is_charging);
-                        }
-                    }
-                }
-            } else {
+            if (current_raw != slot->last_raw_level) {
                 // 바운싱 노이즈 감지 시 카운터 리셋
                 slot->last_raw_level = current_raw;
                 slot->stable_count = 0;
+                continue;
             }
+            if (slot->stable_count >= debounce_threshold) {
+                continue; // 이미 확정된 레벨
+            }
+            if (++slot->stable_count < debounce_threshold) {
+                continue; // 디바운싱 진행 중
+            }
+
+            // Pull-up: 스위치가 눌리면 0 (LOW), 열려있으면 1 (HIGH)
+            bool raw_charging = (current_raw == 0);
+            if (slot->is_charging == raw_charging) {
+                continue;
+            }
+            slot->is_charging = raw_charging;
+
+            // 1. LED 하드웨어 제어 (충전 중이면 ON, 아니면 OFF)
+            gpio_set_level(slot->led_pin, slot->is_charging ? 1 : 0);
+
+            ESP_LOGI(TAG, "[STATION #%d] Status Changed -> %s (LED: %s)",
+                     slot->id,
+                     slot->is_charging ? "CHARGING (Docked)" : "IDLE (Undocked)",
+                     slot->is_charging ? "ON" : "OFF");
+
+            // 2. MQTT 메시지 전송
+            mqtt_app_publish_station_status(slot->id, slot->is_charging);
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -69,45 +80,46 @@ static void dock_monitor_task(void *pvParameters) {
 }
 
 esp_err_t dock_station_init(void) {
-    gpio_config_t io_conf = {0};
+    uint64_t sw_mask = 0;
+    uint64_t led_mask = 0;
+    for (int i = 0; i < DOCK_NUM_STATIONS; i++) {
+        sw_mask |= 1ULL << s_stations[i].sw_pin;
+        led_mask |= 1ULL << s_stations[i].led_pin;
+    }
 
     // 1. Limit Switch Inputs (Pull-Up, Input Mode)
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = (1ULL << STATION_1_LIMIT_SW_PIN) |
-                           (1ULL << STATION_2_LIMIT_SW_PIN) |
-                           (1ULL << STATION_3_LIMIT_SW_PIN);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_config_t sw_conf = {
+        .pin_bit_mask = sw_mask,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&sw_conf));
 
     // 2. Charging Indicator LEDs (Output Mode)
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << STATION_1_LED_PIN) |
-                           (1ULL << STATION_2_LED_PIN) |
-                           (1ULL << STATION_3_LED_PIN);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_config_t led_conf = {
+        .pin_bit_mask = led_mask,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&led_conf));
 
     // 초기 상태: 모든 LED OFF
     for (int i = 0; i < DOCK_NUM_STATIONS; i++) {
         gpio_set_level(s_stations[i].led_pin, 0);
     }
 
-    // 3. 백그라운드 모니터링 태스크 생성 (우선순위 5, 스택 4096)
-    xTaskCreatePinnedToCore(
-        dock_monitor_task,
-        "dock_monitor_task",
-        4096,
-        NULL,
-        tskIDLE_PRIORITY + 2,
-        NULL,
-        1
-    );
+    // 3. 백그라운드 모니터링 태스크 생성 (우선순위 IDLE+2, 스택 4096)
+    if (xTaskCreatePinnedToCore(dock_monitor_task, "dock_monitor_task", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 1) !=
+        pdPASS) {
+        ESP_LOGE(TAG, "Failed to create dock monitor task");
+        return ESP_ERR_NO_MEM;
+    }
 
-    ESP_LOGI(TAG, "Dock hardware initialized: SW(18,19,21), LED(22,23,25)");
+    ESP_LOGI(TAG, "Dock hardware initialized (%d stations)", DOCK_NUM_STATIONS);
     return ESP_OK;
 }
 

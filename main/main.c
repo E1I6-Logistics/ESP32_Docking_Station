@@ -54,15 +54,10 @@ void app_main(void) {
     ESP_ERROR_CHECK(mqtt_app_init());
 
     // 5. 백그라운드 헬스 체크 태스크 가동
-    xTaskCreatePinnedToCore(
-        system_heartbeat_task,
-        "heartbeat_task",
-        3072,
-        NULL,
-        tskIDLE_PRIORITY + 1,
-        NULL,
-        1
-    );
+    if (xTaskCreatePinnedToCore(system_heartbeat_task, "heartbeat_task", 3072, NULL, tskIDLE_PRIORITY + 1, NULL, 1) !=
+        pdPASS) {
+        ESP_LOGE(TAG, "Failed to create heartbeat task");
+    }
 
     ESP_LOGI(TAG, "System initialization fully complete. Ready for docking!");
 }
