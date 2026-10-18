@@ -1,0 +1,19 @@
+idf_component_register(
+    SRCS 
+        "main.c"
+        "wifi_app.c"
+        "mqtt_app.c"
+        "dock_station.c"
+    INCLUDE_DIRS "."
+    REQUIRES 
+        esp_system 
+        freertos 
+        esp_timer 
+        log 
+        nvs_flash 
+        esp_wifi 
+        esp_netif 
+        esp_event 
+        mqtt 
+        driver
+)
