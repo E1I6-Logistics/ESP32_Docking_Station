@@ -1,10 +1,13 @@
 idf_component_register(
     SRCS 
         "main.c"
-        "wifi_app.c"
-        "mqtt_app.c"
-        "dock_station.c"
-    INCLUDE_DIRS "."
+        "asw/src/dock_station.c"
+        "bsw/src/wifi_app.c"
+        "bsw/src/mqtt_app.c"
+    INCLUDE_DIRS 
+        "."
+        "asw/include"
+        "bsw/include"
     REQUIRES 
         esp_system 
         freertos 
