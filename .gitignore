@@ -1,19 +1,50 @@
-# ESP-IDF 임베디드 빌드 아티팩트
+# ==============================================================================
+# ESP-IDF Firmware Build Artifacts (빌드 산출물 및 임시 파일)
+# ==============================================================================
 build/
 sdkconfig
 sdkconfig.old
+dependencies.lock
 
-# VS Code & IDE 임시 파일
-.vscode/.cmaketools.json
-.vscode/ipch/
-compile_commands.json
-
-# C/C++ 컴파일러 및 OS 임시 파일
+# 컴파일러 오브젝트 및 링커 결과물
 *.o
 *.a
 *.d
 *.bin
 *.elf
 *.map
+
+# ==============================================================================
+# Installer & Large Setup Packages (설치 패키지 대용량 바이너리 제외)
+# ==============================================================================
+installer/
+*.exe
+*.msi
+*.zip
+*.tar.gz
+
+# ==============================================================================
+# OS & Editor Temporary Cache (IDE 임시 캐시만 제외, 설정파일은 유지)
+# ==============================================================================
+.vscode/.cmaketools.json
+.vscode/ipch/
+compile_commands.json
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==============================================================================
+# Vibe Coding & Automation Files (버전 관리에 반드시 포함되어야 하는 설정들)
+# 아래 설정들은 절대 ignore되지 않도록 명시적으로 보호합니다.
+# ==============================================================================
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/c_cpp_properties.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.agents/
+!AGENTS.md
+!.clang-format
+!sdkconfig.defaults
+!scripts/

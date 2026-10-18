@@ -13,6 +13,16 @@ description: >-
 
 ## 작업 절차 (Workflows)
 
+### 0. 로컬 개발 환경 자동 설치 (최초 1회)
+ESP-IDF 툴체인이 없는 PC에서 공식 올인원 패키지(Python, Xtensa GCC, Git, OpenOCD, 드라이버)를 자동 다운로드 및 무인 설치합니다:
+- 명령어:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\scripts\install_espidf.ps1
+  ```
+  *(관리자 권한 UAC 팝업 승인 후 `C:\Espressif`에 자동 설치 완료)*
+
+---
+
 ### 1. 펌웨어 빌드
 로컬 환경에서 펌웨어를 컴파일할 때는 아래 스크립트를 사용합니다.
 - 명령어:

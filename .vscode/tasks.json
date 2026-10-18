@@ -35,6 +35,22 @@
             }
         },
         {
+            "label": "Setup: Auto Install ESP-IDF v5.3.2",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy", "Bypass",
+                "-File", "${workspaceFolder}/scripts/install_espidf.ps1"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        },
+        {
             "label": "ESP-IDF: Build & Flash & Monitor",
             "type": "shell",
             "command": "powershell",
