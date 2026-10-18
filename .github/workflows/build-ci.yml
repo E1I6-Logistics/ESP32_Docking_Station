@@ -1,0 +1,48 @@
+name: ESP32 Firmware CI Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ESP-WROOM-32 (esp32) Firmware
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.3.1
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify ESP-IDF Environment
+        run: |
+          idf.py --version
+          gcc --version
+
+      - name: Set Target to ESP32 (WROOM-32)
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py set-target esp32
+
+      - name: Compile and Build Firmware
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py build
+
+      - name: Upload Firmware Binaries Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibe-firmware-esp32-binaries
+          path: |
+            build/vibe_firmware.bin
+            build/vibe_firmware.elf
+            build/vibe_firmware.map
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+          retention-days: 14

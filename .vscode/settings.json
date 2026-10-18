@@ -1,0 +1,17 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "xaver.clang-format",
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c",
+        "esp_chip_info.h": "c",
+        "freertos.h": "c"
+    },
+    "idf.espIdfPathWin": "${env:IDF_PATH}",
+    "idf.toolsPathWin": "${env:IDF_TOOLS_PATH}",
+    "idf.flashType": "UART",
+    "idf.openOcdConfigs": [
+        "board/esp32-wrover-kit-3.3v.cfg"
+    ]
+}

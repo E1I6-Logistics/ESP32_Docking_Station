@@ -1,0 +1,19 @@
+# ESP-IDF 임베디드 빌드 아티팩트
+build/
+sdkconfig
+sdkconfig.old
+
+# VS Code & IDE 임시 파일
+.vscode/.cmaketools.json
+.vscode/ipch/
+compile_commands.json
+
+# C/C++ 컴파일러 및 OS 임시 파일
+*.o
+*.a
+*.d
+*.bin
+*.elf
+*.map
+.DS_Store
+Thumbs.db
