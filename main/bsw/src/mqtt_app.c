@@ -58,9 +58,9 @@ esp_err_t mqtt_app_publish_station_status(int station_id, bool is_charging) {
     char payload[96];
 
     snprintf(topic, sizeof(topic), "dock/station/%d/status", station_id);
-    snprintf(payload, sizeof(payload), "{\"station\": %d, \"status\": \"%s\"}",
+    snprintf(payload, sizeof(payload), "{\"station\": %d, \"status\": %d}",
              station_id,
-             is_charging ? "charging" : "idle");
+             is_charging ? 1 : 0);
 
     // QoS 1, Retain = 1 (신규 브로커 접속자에게도 최신 상태 보존)
     int msg_id = esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 1, 1);

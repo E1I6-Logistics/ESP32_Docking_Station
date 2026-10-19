@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "ESP-IDF: OpenOCD & GDB Debug",
+            "type": "espidf",
+            "request": "launch"
+        },
+        {
+            "name": "ESP32: GDB Remote (OpenOCD :3333)",
+            "type": "cppdbg",
+            "request": "launch",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/Espressif/tools/xtensa-esp-elf-gdb/14.2_20240403/xtensa-esp-elf-gdb/bin/xtensa-esp32-elf-gdb.exe",
+            "program": "${workspaceFolder}/build/vibe_firmware.elf",
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "setupCommands": [
+                {
+                    "text": "target remote :3333"
+                },
+                {
+                    "text": "mon reset halt"
+                },
+                {
+                    "text": "thb app_main"
+                }
+            ]
+        }
+    ]
+}
